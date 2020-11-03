@@ -59,6 +59,7 @@ const (
 	CliFlagReplicas           = "replicas"
 	CliFlagEnable             = "enable"
 	CliFlagEnableFollowerRead = "follower-read"
+	CliFlagEnableAutoExpand   = "auto-axpand"
 	CliFlagAuthenticate       = "authenticate"
 	CliFlagEnableToken        = "enable-token"
 	CliFlagCapacity           = "capacity"

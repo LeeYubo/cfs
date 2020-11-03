@@ -136,6 +136,7 @@ type volValue struct {
 	Authenticate      bool
 	CrossZone         bool
 	EnableToken       bool
+	autoExpand        bool
 	ZoneName          string
 	OSSAccessKey      string
 	OSSSecretKey      string

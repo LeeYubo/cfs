@@ -494,6 +494,7 @@ type SimpleVolView struct {
 	CrossZone          bool
 	CreateTime         string
 	EnableToken        bool
+	AutoExpand		   bool
 	Tokens             map[string]*Token `graphql:"-"`
 	Description        string
 	DpSelectorName     string

@@ -92,6 +92,7 @@ const (
 	cmdVolDefaultCapacity       = 10 // 100GB
 	cmdVolDefaultReplicas       = 3
 	cmdVolDefaultFollowerReader = true
+	cmdVolDefaultAutoExpand 	= false
 	cmdVolDefaultZoneName = "default"
 )
 
@@ -101,6 +102,7 @@ func newVolCreateCmd(client *master.MasterClient) *cobra.Command {
 	var optCapacity uint64
 	var optReplicas int
 	var optFollowerRead bool
+	var optAutoExpand bool
 	var optYes bool
 	var optZoneName string
 	var cmd = &cobra.Command{
@@ -126,6 +128,7 @@ func newVolCreateCmd(client *master.MasterClient) *cobra.Command {
 				stdout("  Capacity            : %v GB\n", optCapacity)
 				stdout("  Replicas            : %v\n", optReplicas)
 				stdout("  Allow follower read : %v\n", formatEnabledDisabled(optFollowerRead))
+				stdout("  Auto expand         : %v\n", formatEnabledDisabled(optAutoExpand))
 				stdout("  ZoneName            : %v\n", optZoneName)
 				stdout("\nConfirm (yes/no)[yes]: ")
 				var userConfirm string
@@ -138,7 +141,7 @@ func newVolCreateCmd(client *master.MasterClient) *cobra.Command {
 
 			err = client.AdminAPI().CreateVolume(
 				volumeName, userID, optMPCount, optDPSize,
-				optCapacity, optReplicas, optFollowerRead, optZoneName)
+				optCapacity, optReplicas, optFollowerRead, optAutoExpand, optZoneName)
 			if err != nil {
 				err = fmt.Errorf("Create volume failed case:\n%v\n", err)
 				return
@@ -152,6 +155,7 @@ func newVolCreateCmd(client *master.MasterClient) *cobra.Command {
 	cmd.Flags().Uint64Var(&optCapacity, CliFlagCapacity, cmdVolDefaultCapacity, "Specify volume capacity [Unit: GB]")
 	cmd.Flags().IntVar(&optReplicas, CliFlagReplicas, cmdVolDefaultReplicas, "Specify data partition replicas number")
 	cmd.Flags().BoolVar(&optFollowerRead, CliFlagEnableFollowerRead, cmdVolDefaultFollowerReader, "Enable read form replica follower")
+	cmd.Flags().BoolVar(&optAutoExpand, CliFlagEnableAutoExpand, cmdVolDefaultAutoExpand, "Enable volume size auto expand")
 	cmd.Flags().StringVar(&optZoneName, CliFlagZoneName, cmdVolDefaultZoneName, "Specify volume zone name")
 	cmd.Flags().BoolVarP(&optYes, "yes", "y", false, "Answer yes for all questions")
 	return cmd

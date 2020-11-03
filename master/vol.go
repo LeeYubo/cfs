@@ -56,6 +56,7 @@ type Vol struct {
 	crossZone          bool
 	zoneName           string
 	enableToken        bool
+	autoExpand		   bool
 	tokens             map[string]*proto.Token
 	tokensLock         sync.RWMutex
 	MetaPartitions     map[uint64]*MetaPartition `graphql:"-"`
@@ -72,7 +73,7 @@ type Vol struct {
 	sync.RWMutex
 }
 
-func newVol(id uint64, name, owner, zoneName string, dpSize, capacity uint64, dpReplicaNum, mpReplicaNum uint8, followerRead, authenticate, crossZone bool, enableToken bool, createTime int64, description string) (vol *Vol) {
+func newVol(id uint64, name, owner, zoneName string, dpSize, capacity uint64, dpReplicaNum, mpReplicaNum uint8, followerRead, authenticate, crossZone, enableToken, autoExpand bool, createTime int64, description string) (vol *Vol) {
 	vol = &Vol{ID: id, Name: name, MetaPartitions: make(map[uint64]*MetaPartition, 0)}
 	vol.dataPartitions = newDataPartitionMap(name)
 	if dpReplicaNum < defaultReplicaNum {
@@ -103,6 +104,7 @@ func newVol(id uint64, name, owner, zoneName string, dpSize, capacity uint64, dp
 	vol.enableToken = enableToken
 	vol.tokens = make(map[string]*proto.Token, 0)
 	vol.description = description
+	vol.autoExpand = autoExpand
 	return
 }
 
@@ -120,6 +122,7 @@ func newVolFromVolValue(vv *volValue) (vol *Vol) {
 		vv.Authenticate,
 		vv.CrossZone,
 		vv.EnableToken,
+		vv.autoExpand,
 		vv.CreateTime,
 		vv.Description)
 	// overwrite oss secure

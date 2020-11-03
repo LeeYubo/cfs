@@ -20,6 +20,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/chubaofs/chubaofs/util"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -34,7 +35,13 @@ import (
 )
 
 const (
-	MaxSendToMaster = 3
+	MaxSendToMaster      = 3
+	BucketSizeThreshold  = 0.8
+	BucketCapacity100G   = 100 * util.GB
+	BucketCapacity1T     = util.TB
+	BucketExpandLess100G = 1
+	BucketExpandLess1T   = 0.5
+	BucketExpandMore1T   = 0.2
 )
 
 type VolumeView struct {
@@ -134,6 +141,7 @@ func (mw *MetaWrapper) updateVolStatInfo() (err error) {
 		log.LogWarnf("updateVolStatInfo: get volume status fail: volume(%v) err(%v)", mw.volname, err)
 		return
 	}
+	mw.autoExpand = info.AutoExpand
 	atomic.StoreUint64(&mw.totalSize, info.TotalSize)
 	atomic.StoreUint64(&mw.usedSize, info.UsedSize)
 	log.LogInfof("VolStatInfo: info(%v)", info)
@@ -223,6 +231,10 @@ func (mw *MetaWrapper) refresh() {
 				mw.onAsyncTaskError.OnError(err)
 				log.LogErrorf("updateVolStatInfo fail cause: %v", err)
 			}
+			if err = mw.expandVolumeSize(); err != nil {
+				mw.onAsyncTaskError.OnError(err)
+				log.LogErrorf("expandVolumeSize fail cause: %v", err)
+			}
 			t.Reset(RefreshMetaPartitionsInterval)
 		case <-mw.forceUpdate:
 			log.LogInfof("Start forceUpdateMetaPartitions")
@@ -230,6 +242,9 @@ func (mw *MetaWrapper) refresh() {
 			if err = mw.forceUpdateMetaPartitions(); err == nil {
 				if err = mw.updateVolStatInfo(); err == nil {
 					t.Reset(RefreshMetaPartitionsInterval)
+				}
+				if err = mw.expandVolumeSize(); err != nil {
+					log.LogErrorf("force expand volume size fail cause: %v", err)
 				}
 			}
 			mw.partMutex.Unlock()
@@ -239,6 +254,40 @@ func (mw *MetaWrapper) refresh() {
 			return
 		}
 	}
+}
+
+func (mw *MetaWrapper) expandVolumeSize() (err error) {
+	if !mw.autoExpand {
+		return
+	}
+	usedRate := float64(mw.usedSize) / float64(mw.totalSize)
+	if usedRate < BucketSizeThreshold {
+		return
+	}
+
+	var (
+		ak string
+		vv *proto.SimpleVolView
+		expandRate float64
+	)
+	if mw.totalSize <= BucketCapacity100G {
+		expandRate = BucketExpandLess100G
+	} else if mw.totalSize < BucketCapacity1T {
+		expandRate = BucketExpandMore1T
+	} else {
+		expandRate = BucketExpandLess1T
+	}
+	expandedCapacity := uint64(float64(mw.totalSize) * (1+expandRate))
+	if vv, err = mw.mc.AdminAPI().GetVolumeSimpleInfo(mw.volname); err != nil {
+		return
+	}
+	if ak, err = calculateAuthKey(vv.Owner); err != nil {
+		return
+	}
+	if err = mw.mc.AdminAPI().VolExpand(mw.volname, expandedCapacity, ak); err != nil {
+		return
+	}
+	return
 }
 
 func calculateAuthKey(key string) (authKey string, err error) {

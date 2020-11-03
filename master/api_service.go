@@ -711,11 +711,12 @@ func (m *Server) createVol(w http.ResponseWriter, r *http.Request) {
 		authenticate bool
 		crossZone    bool
 		enableToken  bool
+		autoExpand   bool
 		zoneName     string
 		description  string
 	)
 
-	if name, owner, zoneName, description, mpCount, dpReplicaNum, size, capacity, followerRead, authenticate, crossZone, enableToken, err = parseRequestToCreateVol(r); err != nil {
+	if name, owner, zoneName, description, mpCount, dpReplicaNum, size, capacity, followerRead, authenticate, crossZone, enableToken, autoExpand, err = parseRequestToCreateVol(r); err != nil {
 		sendErrReply(w, r, &proto.HTTPReply{Code: proto.ErrCodeParamError, Msg: err.Error()})
 		return
 	}
@@ -724,7 +725,7 @@ func (m *Server) createVol(w http.ResponseWriter, r *http.Request) {
 		sendErrReply(w, r, &proto.HTTPReply{Code: proto.ErrCodeParamError, Msg: err.Error()})
 		return
 	}
-	if vol, err = m.cluster.createVol(name, owner, zoneName, description, mpCount, dpReplicaNum, size, capacity, followerRead, authenticate, crossZone, enableToken); err != nil {
+	if vol, err = m.cluster.createVol(name, owner, zoneName, description, mpCount, dpReplicaNum, size, capacity, followerRead, authenticate, crossZone, enableToken, autoExpand); err != nil {
 		sendErrReply(w, r, newErrHTTPReply(err))
 		return
 	}
@@ -752,6 +753,7 @@ func (m *Server) getVolSimpleInfo(w http.ResponseWriter, r *http.Request) {
 		sendErrReply(w, r, newErrHTTPReply(proto.ErrVolNotExists))
 		return
 	}
+	log.LogDebugf("[getVolSimpleInfo], vol : %v")
 	volView = newSimpleView(vol)
 	sendOkReply(w, r, newSuccessHTTPReply(volView))
 }
@@ -783,6 +785,7 @@ func newSimpleView(vol *Vol) *proto.SimpleVolView {
 		Authenticate:       vol.authenticate,
 		CrossZone:          vol.crossZone,
 		EnableToken:        vol.enableToken,
+		AutoExpand: 		vol.autoExpand,
 		Tokens:             vol.tokens,
 		RwDpCnt:            vol.dataPartitions.readableAndWritableCnt,
 		MpCnt:              len(vol.MetaPartitions),
@@ -1477,7 +1480,7 @@ func parseRequestToSetVolCapacity(r *http.Request) (name, authKey string, capaci
 	return
 }
 
-func parseRequestToCreateVol(r *http.Request) (name, owner, zoneName, description string, mpCount, dpReplicaNum, size, capacity int, followerRead, authenticate, crossZone, enableToken bool, err error) {
+func parseRequestToCreateVol(r *http.Request) (name, owner, zoneName, description string, mpCount, dpReplicaNum, size, capacity int, followerRead, authenticate, crossZone, enableToken, autoExpand bool, err error) {
 	if err = r.ParseForm(); err != nil {
 		return
 	}
@@ -1523,9 +1526,25 @@ func parseRequestToCreateVol(r *http.Request) (name, owner, zoneName, descriptio
 	if crossZone, err = extractCrossZone(r); err != nil {
 		return
 	}
+
+	if autoExpand, err = extractAutoExpand(r); err != nil {
+		return
+	}
 	zoneName = r.FormValue(zoneNameKey)
 	enableToken = extractEnableToken(r)
 	description = r.FormValue(descriptionKey)
+	return
+}
+
+func extractAutoExpand(r *http.Request) (autoExpand bool, err error) {
+	var value string
+	if value = r.FormValue(autoExpandKey); value == "" {
+		autoExpand = false
+		return
+	}
+	if autoExpand, err = strconv.ParseBool(value); err != nil {
+		return
+	}
 	return
 }
 
@@ -2001,6 +2020,7 @@ func volStat(vol *Vol) (stat *proto.VolStatInfo) {
 		stat.UsedSize = stat.TotalSize
 	}
 	stat.EnableToken = vol.enableToken
+	stat.AutoExpand = vol.autoExpand
 	log.LogDebugf("total[%v],usedSize[%v]", stat.TotalSize, stat.UsedSize)
 	return
 }

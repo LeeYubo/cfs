@@ -46,6 +46,7 @@ const (
 	tokenKey                = "token"
 	tokenTypeKey            = "tokenType"
 	enableTokenKey          = "enableToken"
+	autoExpandKey           = "autoExpand"
 	userKey                 = "user"
 	nodeHostsKey            = "hosts"
 	nodeDeleteBatchCountKey = "batchCount"

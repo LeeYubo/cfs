@@ -122,6 +122,10 @@ type MetaWrapper struct {
 	partMutex sync.Mutex
 	partCond  *sync.Cond
 
+	// volume expand
+	expandMutex sync.Mutex
+	autoExpand bool
+
 	// Used to trigger and throttle instant partition updates
 	forceUpdate      chan struct{}
 	forceUpdateLimit *rate.Limiter

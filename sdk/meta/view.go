@@ -36,9 +36,9 @@ import (
 
 const (
 	MaxSendToMaster      = 3
-	BucketSizeThreshold  = 0.8
-	BucketCapacity100G   = 100 * util.GB
-	BucketCapacity1T     = util.TB
+	BucketSizeThreshold  = 0.1
+	BucketCapacity100G   = 20 * util.GB
+	BucketCapacity1T     = 50 * util.GB
 	BucketExpandLess100G = 1
 	BucketExpandLess1T   = 0.5
 	BucketExpandMore1T   = 0.2
@@ -261,23 +261,29 @@ func (mw *MetaWrapper) expandVolumeSize() (err error) {
 		return
 	}
 	usedRate := float64(mw.usedSize) / float64(mw.totalSize)
+	log.LogDebugf("[expandVolumeSize] usedSize : %v, totalSize : %v", mw.usedSize, mw.totalSize)
+	log.LogDebugf("[expandVolumeSize] usedRate : %v", usedRate)
 	if usedRate < BucketSizeThreshold {
 		return
 	}
 
 	var (
-		ak string
-		vv *proto.SimpleVolView
+		ak         string
+		vv         *proto.SimpleVolView
 		expandRate float64
 	)
 	if mw.totalSize <= BucketCapacity100G {
 		expandRate = BucketExpandLess100G
-	} else if mw.totalSize < BucketCapacity1T {
+	} else if mw.totalSize > BucketCapacity1T {
 		expandRate = BucketExpandMore1T
 	} else {
 		expandRate = BucketExpandLess1T
 	}
-	expandedCapacity := uint64(float64(mw.totalSize) * (1+expandRate))
+	log.LogDebugf("[expandVolumeSize] expandRate : %v", expandRate)
+	expandedCapacity := uint64(float64(mw.totalSize) * (1 + expandRate))
+	log.LogDebugf("[expandVolumeSize] expandedCapacity 001 : %v", expandedCapacity)
+	expandedCapacity = expandedCapacity / util.GB
+	log.LogDebugf("[expandVolumeSize] expandedCapacity 002 : %v", expandedCapacity)
 	if vv, err = mw.mc.AdminAPI().GetVolumeSimpleInfo(mw.volname); err != nil {
 		return
 	}

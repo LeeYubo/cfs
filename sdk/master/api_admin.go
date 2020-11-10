@@ -267,6 +267,7 @@ func (api *AdminAPI) CreateDefaultVolume(volName, owner string) (err error) {
 	request.addParam("name", volName)
 	request.addParam("owner", owner)
 	request.addParam("capacity", "10")
+	request.addParam("autoExpand", "true")
 	if _, err = api.mc.serveRequest(request); err != nil {
 		return
 	}
